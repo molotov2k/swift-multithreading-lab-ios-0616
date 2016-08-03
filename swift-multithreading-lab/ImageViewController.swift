@@ -12,6 +12,7 @@ import CoreImage
 
 class ImageViewController : UIViewController, UIScrollViewDelegate {
     
+    @IBOutlet weak var antiqueButton: UIBarButtonItem!
     var scrollView: UIScrollView!
     var imageView: UIImageView!
     var activityIndicator: UIActivityIndicatorView!
@@ -22,10 +23,26 @@ class ImageViewController : UIViewController, UIScrollViewDelegate {
     }
     
     @IBAction func antiqueButtonTapped(sender: AnyObject) {
-        filterImage { (result) in
-            result ? print("Image filtering complete") : print("Image filtering did not complete")
+        startAcitivityIndecator()
+        antiqueButton.enabled = false
+        antiqueButton.title = "Rendering"
+        
+        let filterOperation = NSBlockOperation {
+            self.filterImage({ (success) in
+                NSOperationQueue.mainQueue().addOperationWithBlock({ 
+                    self.stopActivityIndecator()
+                    self.antiqueButton.enabled = true
+                    self.antiqueButton.title = "Antique"
+                })
+                success ? print("Image filtering complete") : print("Image filtering did not complete")
+            })
         }
+        
+        filterOperation.qualityOfService = .UserInitiated
+        NSOperationQueue().addOperation(filterOperation)
+        
     }
+    
     
     func filterImage(completion: (Bool) -> ()) {
         guard let image = imageView?.image, cgimg = image.CGImage else {
@@ -60,7 +77,9 @@ class ImageViewController : UIViewController, UIScrollViewDelegate {
                 UIGraphicsEndImageContext()
                 
                 print("Setting final result")
-                self.imageView?.image = finalResult
+                NSOperationQueue.mainQueue().addOperationWithBlock({ 
+                    self.imageView?.image = finalResult
+                })
                 completion(true)
             }
         }
@@ -82,6 +101,11 @@ extension ImageViewController {
         scrollView.delegate = self
         
         setZoomScale()
+        
+        activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: .WhiteLarge)
+        activityIndicator.color = UIColor.cyanColor()
+        activityIndicator.center = view.center
+        
     }
     
     func viewForZoomingInScrollView(scrollView: UIScrollView) -> UIView? {
@@ -111,4 +135,16 @@ extension ImageViewController {
         scrollView.minimumZoomScale = min(widthScale, heightScale)
         scrollView.zoomScale = 1.0
     }
+    
+    func startAcitivityIndecator() {
+        view.addSubview(activityIndicator)
+        activityIndicator.startAnimating()
+    }
+    
+    func stopActivityIndecator() {
+        activityIndicator.stopAnimating()
+        activityIndicator.removeFromSuperview()
+    }
+    
+    
 }
